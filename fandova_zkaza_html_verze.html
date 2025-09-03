@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fandova Zkáza</title>
+  <style>
+    :root{
+      --bg:#0f1115;--card:#171a21;--muted:#8a93a6;--text:#e6e9f2;--accent:#8b5cf6;--good:#16a34a;--bad:#dc2626;--btn:#222635;--ring:#2a3042;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:radial-gradient(1200px 600px at 10% -10%,#1d2232 10%,transparent 60%),radial-gradient(1000px 600px at 110% 10%,#1a2030 10%,transparent 60%),var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,"Noto Sans",sans-serif;}
+    .wrap{max-width:900px;margin:40px auto;padding:0 16px}
+    h1{font-size:40px;margin:0 0 8px;letter-spacing:.5px}
+    .subtitle{color:var(--muted);margin-bottom:24px}
+    .grid{display:grid;gap:12px;grid-template-columns:repeat(4,1fr);}
+    .btn{appearance:none;border:1px solid transparent;background:var(--btn);color:var(--text);padding:12px 14px;border-radius:14px;font-weight:600;cursor:pointer;transition:.2s;box-shadow:0 1px 0 rgba(0,0,0,.2)}
+    .btn:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(0,0,0,.25);border-color:var(--ring)}
+    .btn.primary{background:linear-gradient(180deg,#6d28d9,#4c1d95);border-color:#6d28d9}
+    .btn.good{background:linear-gradient(180deg,#16a34a,#14532d);border-color:#16a34a}
+    .btn.bad{background:linear-gradient(180deg,#dc2626,#7f1d1d);border-color:#dc2626}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));border:1px solid rgba(255,255,255,.06);backdrop-filter:blur(8px);border-radius:16px;padding:16px 18px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+    .card h2{margin:4px 0 8px}
+    .task{font-size:18px;font-weight:700;margin:4px 0 8px}
+    .muted{color:var(--muted)}
+    .list{margin:8px 0 0 18px}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .form{display:grid;gap:10px;grid-template-columns:1fr 1fr 220px auto}
+    input,select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#10131b;color:var(--text);outline:none}
+    input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(139,92,246,.25)}
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;background:#111425;border:1px solid rgba(255,255,255,.08);border-radius:999px}
+    .footer{margin-top:22px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .badge{font-size:12px;color:#cbd5e1;background:#111826;border:1px solid rgba(255,255,255,.08);padding:6px 10px;border-radius:999px}
+    @media (max-width:720px){.grid{grid-template-columns:1fr 1fr}.form{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>🍻 Fandova Zkáza</h1>
+    <div class="subtitle">Vyber obtížnost → vylosuj úkol → splň nebo vrať do slosování. Odměna se zobrazí až po potvrzení splnění.</div>
+
+    <div class="grid" id="difficultyButtons">
+      <button class="btn" data-level="lehka">Lehká</button>
+      <button class="btn" data-level="stredni">Střední</button>
+      <button class="btn" data-level="tezka">Těžká</button>
+      <button class="btn" data-level="sormovice">Zasraná Šormovice</button>
+    </div>
+
+    <div id="taskCard" class="card" style="margin-top:16px; display:none;">
+      <h2>Aktuální úkol <span class="badge" id="badgeLevel"></span></h2>
+      <div class="task" id="taskText"></div>
+      <div class="muted" id="rewardLine" style="display:none;">Odměna: <strong id="taskReward"></strong></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn good" id="btnDone">Splněno ✅</button>
+        <button class="btn bad" id="btnFail">Nesplněno ❌</button>
+        <button class="btn" id="btnNext" style="display:none">Další úkol ↻</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2>📊 Tabulka vypitých věcí</h2>
+      <div class="muted" id="emptyLog">Zatím nic nevypito…</div>
+      <ul class="list" id="drinkLog" style="display:none"></ul>
+      <div class="footer" id="drinkSummary" style="display:none"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2>➕ Přidat nový úkol</h2>
+      <div class="form">
+        <input id="inputTask" placeholder="Text úkolu" />
+        <input id="inputReward" placeholder="Odměna (např. Panák rumu)" />
+        <select id="selectLevel">
+          <option value="lehka">Lehká</option>
+          <option value="stredni">Střední</option>
+          <option value="tezka">Těžká</option>
+          <option value="sormovice">Zasraná Šormovice</option>
+        </select>
+        <button class="btn primary" id="btnAdd">Přidat úkol</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const tasks = {
+      lehka:[
+        {text:"Vyjmenuj 10 nejlepších vlastností nastávající nahlas před všemi", reward:"Panák piva"},
+        {text:"Uděláš 20 dřepů při hlasitém zpěvu svatebního pochodu", reward:"Panák slivovice"},
+        {text:"Předveď módní přehlídku v kostýmu složeném kamarády z náhodných kusů oblečení", reward:"Panák rumu"},
+      ],
+      stredni:[
+        {text:"Vypij panáka bez použití rukou (pouze pusou)", reward:"Panák whisky"},
+        {text:"Zazpívej karaoke písničku, kterou vyberou kamarádi", reward:"Panák tequily"},
+        {text:"Odvyprávěj nejtrapnější historku ze svého života", reward:"Panák vodky"},
+        {text:"Sněz bizarní kombinaci jídel připravenou ostatními (např. klobása s marmeládou)", reward:"Dvojitý panák + pivo"},
+      ],
+      tezka:[
+        {text:"Předveď improvizovaný tanec po dobu 3 minut na vybranou píseň", reward:"Panák absinthu"},
+        {text:"Na stůl přednes svatební přísahu ve formě stand-up vystoupení", reward:"Panák ginu"},
+        {text:"Udělej 5 kliků s kamarádem na zádech", reward:"2 panáky dle výběru"},
+        {text:"Nech si na obličej nebo břicho nakreslit tetování fixou a nos ho celý večer", reward:"Panák ohnivé vody"},
+      ],
+      sormovice:[
+        {text:"Oběhni chatu v boxerkách nebo úplně nahý (podle odvahy)", reward:"Panák dle výběru"},
+        {text:"Nech si na záda nakreslit obří nápis fixou (např. 'Pod pantoflem') a nos ho celý večer", reward:"Panák slivovice"},
+        {text:"Otevři pusu a nech si lít pivo dokud nezačneš prskat smíchy", reward:"Panák rumu"},
+        {text:"Sněz 'speciální sendvič' připravený ostatními z čehokoliv", reward:"Panák ginu + pivo"},
+        {text:"Hoď kostkou – číslo určí, kolik panáků musíš vypít během 5 minut", reward:"Titul Legenda večírku"},
+      ]
+    };
+
+    // State
+    let currentLevel = null;
+    let currentTask = null;
+    const drinkLog = [];
+
+    // Elements
+    const difficultyButtons = document.getElementById('difficultyButtons');
+    const taskCard = document.getElementById('taskCard');
+    const badgeLevel = document.getElementById('badgeLevel');
+    const taskText = document.getElementById('taskText');
+    const rewardLine = document.getElementById('rewardLine');
+    const taskReward = document.getElementById('taskReward');
+    const btnDone = document.getElementById('btnDone');
+    const btnFail = document.getElementById('btnFail');
+    const btnNext = document.getElementById('btnNext');
+    const emptyLog = document.getElementById('emptyLog');
+    const drinkList = document.getElementById('drinkLog');
+    const drinkSummary = document.getElementById('drinkSummary');
+
+    function levelLabel(level){
+      return ({lehka:'Lehká', stredni:'Střední', tezka:'Těžká', sormovice:'Zasraná Šormovice'})[level] || level;
+    }
+
+    function drawTask(level){
+      currentLevel = level;
+      const pool = tasks[level];
+      if(!pool || pool.length===0){
+        alert('V této obtížnosti nejsou žádné úkoly. Přidej nějaký níže.');
+        return;
+      }
+      currentTask = pool[Math.floor(Math.random()*pool.length)];
+      taskCard.style.display = 'block';
+      badgeLevel.textContent = levelLabel(level);
+      taskText.textContent = currentTask.text;
+      rewardLine.style.display = 'none';
+      btnNext.style.display = 'none';
+      btnDone.style.display = 'inline-block';
+      btnFail.style.display = 'inline-block';
+      taskReward.textContent = currentTask.reward;
+    }
+
+    difficultyButtons.addEventListener('click', (e)=>{
+      const btn = e.target.closest('button[data-level]');
+      if(!btn) return;
+      drawTask(btn.dataset.level);
+    });
+
+    btnDone.addEventListener('click', ()=>{
+      if(!currentTask) return;
+      rewardLine.style.display = 'block';
+      drinkLog.push(currentTask.reward);
+      renderDrinks();
+      btnDone.style.display = 'none';
+      btnFail.style.display = 'none';
+      btnNext.style.display = 'inline-block';
+    });
+
+    btnFail.addEventListener('click', ()=>{
+      // Úkol se vrací do slosování – jen skryjeme kartu
+      currentTask = null;
+      taskCard.style.display = 'none';
+    });
+
+    btnNext.addEventListener('click', ()=>{
+      drawTask(currentLevel);
+    });
+
+    function renderDrinks(){
+      if(drinkLog.length===0){
+        emptyLog.style.display = 'block';
+        drinkList.style.display = 'none';
+        drinkSummary.style.display = 'none';
+        return;
+      }
+      emptyLog.style.display = 'none';
+      drinkList.style.display = 'block';
+      drinkList.innerHTML = '';
+      drinkLog.forEach((r,i)=>{
+        const li = document.createElement('li');
+        li.textContent = r;
+        drinkList.appendChild(li);
+      });
+
+      // Souhrn podle typu odměny
+      const map = new Map();
+      drinkLog.forEach(r=>map.set(r,(map.get(r)||0)+1));
+      drinkSummary.style.display = 'flex';
+      drinkSummary.innerHTML = '';
+      [...map.entries()].forEach(([name,count])=>{
+        const span = document.createElement('span');
+        span.className='pill';
+        span.textContent = `${name} · ${count}×`;
+        drinkSummary.appendChild(span);
+      });
+    }
+
+    // Přidávání úkolu
+    const inputTask = document.getElementById('inputTask');
+    const inputReward = document.getElementById('inputReward');
+    const selectLevel = document.getElementById('selectLevel');
+    const btnAdd = document.getElementById('btnAdd');
+
+    btnAdd.addEventListener('click', ()=>{
+      const text = inputTask.value.trim();
+      const reward = inputReward.value.trim();
+      const level = selectLevel.value;
+      if(!text || !reward){
+        alert('Vyplň text úkolu i odměnu.');
+        return;
+      }
+      tasks[level].push({text,reward});
+      inputTask.value = '';
+      inputReward.value = '';
+      selectLevel.value = 'lehka';
+      // Krátké potvrzení
+      btnAdd.textContent = 'Přidáno ✔';
+      setTimeout(()=>btnAdd.textContent='Přidat úkol',800);
+    });
+  </script>
+</body>
+</html>
